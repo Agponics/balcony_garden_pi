@@ -19,18 +19,19 @@
 #define START_PIN_DS18B20_SNSRS 8
 #define START_PIN_DHT22_SNSRS   9
 
-#define NUM_RELAY_SWTCHS        6 // 4 general purpose relays + 'kill switch' + grow bed valve
+#define NUM_RELAY_SWTCHS  6 // 4 general purpose relays + 'kill switch' + grow bed valve
 #define NUM_DS18B20_SNSRS 2
 #define NUM_DHT22_SNSRS   1
 #define NUM_FLOAT_SWTCHS  1
 #define NUM_H20_SNSRS     2
 #define NUM_FEED_VALVES   1
 
-#define RELAY_SWTCH_PREFIX     "RelaySwitch"
-#define DHT22_SNSR_NAME_PREFIX "DHT22Sensor"
+#define RELAY_SWTCH_NAME_PREFIX   "RelaySwitch"
+#define DHT22_SNSR_NAME_PREFIX    "DHT22Sensor"
+#define DSB18B20_SNSR_NAME_PREFIX "DS18B20Sensor"
 
-CDht22Sensor   g_dht22_sensors[NUM_DHT22_SNSRS];
 CRelay         g_relay_switches[NUM_RELAY_SWTCHS];
+CDht22Sensor   g_dht22_sensors[NUM_DHT22_SNSRS];
 CDs18b20Sensor g_ds18b20_sensor;  // these probes are all on 1 wire
 
 #define DBG 1 // turn on to get detailed debug info
@@ -43,19 +44,15 @@ CDs18b20Sensor g_ds18b20_sensor;  // these probes are all on 1 wire
 void setup()
 {
     Serial.begin(SERIAL_BAUD);
-    delay (DELAY);
+    delay(DELAY);
     
     // initialize relay switch objects and pins
     for (unsigned int i = 0; i < NUM_RELAY_SWTCHS; i++)
     {
-        g_relay_switches[i].set_name(String(RELAY_SWTCH_PREFIX) + String(i));
+        g_relay_switches[i].set_name(String(RELAY_SWTCH_NAME_PREFIX) + String(i));
         g_relay_switches[i].set_pin(START_PIN_RELAY_SWTCHS + i);
         DBGMSG(g_relay_switches[i].get_name() + " initialized");
     }
-    
-    // initialize DS18B20 "one wire" probes
-    g_ds18b20_sensor.set_name("DS18B20Sensor");
-    g_ds18b20_sensor.set_pin(START_PIN_DS18B20_SNSRS);
     
     // initialize DHT-22 sensor objects and pins
     for (unsigned int i = 0; i < NUM_DHT22_SNSRS; i++)
@@ -64,6 +61,10 @@ void setup()
         g_dht22_sensors[i].set_pin(START_PIN_DHT22_SNSRS + i);
         DBGMSG(g_dht22_sensors[i].get_name() + " initialized");
     }
+    
+    // initialize DS18B20 "one wire" probes
+    g_ds18b20_sensor.set_name(DSB18B20_SNSR_NAME_PREFIX);
+    g_ds18b20_sensor.set_pin(START_PIN_DS18B20_SNSRS);
 }
 
 void loop()
