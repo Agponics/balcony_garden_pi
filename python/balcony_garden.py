@@ -1,14 +1,41 @@
 import serial
 import time
 import threading
+import credentials
+from ISStreamer.Streamer import Streamer
+
+#we're currently using InitialState to stream data:
+#http://support.initialstate.com/
 
 def dbgprint(msg):
     print msg
 
+def log_to_cloud(strs):
+    lines = strs.split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        #raw stream data is always [stream_name]:[value]
+        tokens = line.split(":", 1)
+        if len(tokens) != 2:
+            dbgprint("unexpected stream format: " + str(tokens))
+        else:
+            dbgprint("logging stream: " + tokens[0] + ", value: " + tokens[1])
+        try:
+            cloud_streamer.log(tokens[0], tokens[1])
+        except:
+            dbgprint("caught exception when logging to streamer")
+    try:
+        cloud_streamer.flush()
+    except:
+        dpgprint("caught exception when flushing streamer")
+    
+
 #periodically check all device states
 def check_status():
     while(ser.isOpen()): # bail if the serial connection ever closes
-        status_str = ""
+        status_strs = ""
         time.sleep(sec_per_check)
         mutex.acquire()
         try:
@@ -19,15 +46,14 @@ def check_status():
                 line = ser.readline().strip()
                 if line:
                     dbgprint(line)
-                    status_str += line + "\n"
+                    status_strs += line + "\n"
                 else:
                     break
         finally:
             mutex.release()
-            #todo: post status to cloud
+            log_to_cloud(status_strs)
             #todo: analyze status and schedule events
     
-
 baud_rate = 9600
 sec_per_check = 10
 #if these ports aren't working, try:
@@ -59,17 +85,24 @@ except:
 
 dbgprint(ser.name)
 dbgprint("serial port open: " + str(ser.isOpen()))
-time.sleep(2)
+time.sleep(0.5)
 
 try:
+    cloud_streamer = Streamer(bucket_name=credentials.bucket_name, bucket_key=credentials.bucket_key, access_key=credentials.access_key)
+    dbgprint("streamer.BucketName: " + str(cloud_streamer.BucketName))
+    dbgprint("streamer.AccessKey: " + str(cloud_streamer.AccessKey))
     t1 = threading.Thread(target=check_status, args=())
-    #flag threads as daeomons so we exit if the main thread dies
+    #flag threads as daemons so we exit if the main thread dies
     t1.daemon = True
     t1.start()
     while ser.isOpen():
-        time.sleep(1)
+        time.sleep(5)
     ser.close()
 except:
-    dbgprint("\nQuitting")
-    ser.close()
+    try:
+        ser.close()
+        cloud_streamer.close()
+    finally:
+        dbgprint("\nQuitting")
+        
 
