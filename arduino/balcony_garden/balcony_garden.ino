@@ -6,8 +6,9 @@
 #include "base_device.h"
 #include "analog_float_switch.h"
 #include "relay_switch.h"
-#include "dht22_sensor.h"
-#include "ds18b20_sensor.h"
+#include "dht22_sensor.h"   // DHT-22 temp/humidity sensor
+#include "ds18b20_sensor.h" // one-wire temperature probe
+#include "hcsr04_sensor.h"  // HC-SR04 ultrasonic distance sensor
 
 #define DELAY 500
 
@@ -20,6 +21,7 @@
                                   // pin 7: bottom right outlet
 #define START_PIN_DS18B20_SNSRS 8
 #define START_PIN_DHT22_SNSRS   9
+#define START_PIN_HCSR04_SNSRS  10
 
 #define NUM_RELAY_SWTCHS  6 // 4 general purpose relays + 'kill switch' + grow bed valve
 #define NUM_DS18B20_SNSRS 2
@@ -27,16 +29,19 @@
 #define NUM_FLOAT_SWTCHS  1
 #define NUM_H20_SNSRS     2
 #define NUM_FEED_VALVES   1
+#define NUM_SR04_SNRS     1
 
 #define FLOAT_SWTCH_NAME_PREFIX   "FloatSwitch"
 #define RELAY_SWTCH_NAME_PREFIX   "RelaySwitch"
 #define DHT22_SNSR_NAME_PREFIX    "DHT22Sensor"
 #define DSB18B20_SNSR_NAME_PREFIX "DS18B20Sensor"
+#define SR04_SNSR_NAME_PREFIX     "HCSR04Sensor"
 
 CAnalogFloatSwitch g_float_switch;
 CRelay             g_relay_switches[NUM_RELAY_SWTCHS];
 CDht22Sensor       g_dht22_sensors[NUM_DHT22_SNSRS];
 CDs18b20Sensor     g_ds18b20_sensor;  // these probes are all on 1 wire
+CHcsr04Sensor      g_sr04_sensor;
 
 #define DBG 1 // turn on to get detailed debug info
 #if DBG == 0
@@ -73,6 +78,10 @@ void setup()
     // initialize DS18B20 "one wire" probes
     g_ds18b20_sensor.set_name(DSB18B20_SNSR_NAME_PREFIX);
     g_ds18b20_sensor.set_pin(START_PIN_DS18B20_SNSRS);
+    
+    // initialize HC-SR04 ultrasonic distance sensor:
+    g_sr04_sensor.set_name(SR04_SNSR_NAME_PREFIX);
+    g_sr04_sensor.set_pin(START_PIN_HCSR04_SNSRS);
 }
 
 void loop()
@@ -110,6 +119,7 @@ void loop()
                 report_relay_switch_states();
                 report_dht22_sensor_states();
                 report_ds18b20_sensor_states();
+                report_sr04_sensor_states();
                 break;
             default:
                 DBGMSG("a bad command was provided")
@@ -146,6 +156,11 @@ void report_dht22_sensor_states()
 void report_ds18b20_sensor_states()
 {
     Serial.println(g_ds18b20_sensor.get_status_str());  
+}
+
+void report_sr04_sensor_states()
+{
+    Serial.println(g_sr04_sensor.get_status_str());
 }
 
 
