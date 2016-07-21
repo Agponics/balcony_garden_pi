@@ -43,8 +43,8 @@ CDht22Sensor       g_dht22_sensors[NUM_DHT22_SNSRS];
 CDs18b20Sensor     g_ds18b20_sensor;  // these probes are all on 1 wire
 CHcsr04Sensor      g_sr04_sensor;
 
-#define DBG 1 // turn on to get detailed debug info
-#if DBG == 0
+#define DBG 0 // turn on to get detailed debug info
+#if DBG == 1
 #define DBGMSG(msg) Serial.println(msg);
 #else
 #define DBGMSG(msg)
@@ -80,7 +80,7 @@ void setup()
     g_ds18b20_sensor.set_pin(START_PIN_DS18B20_SNSRS);
     
     // initialize HC-SR04 ultrasonic distance sensor:
-    g_sr04_sensor.set_name(SR04_SNSR_NAME_PREFIX);
+    g_sr04_sensor.set_name(SR04_SNSR_NAME_PREFIX + String(0));
     g_sr04_sensor.set_pin(START_PIN_HCSR04_SNSRS);
 }
 
@@ -89,8 +89,9 @@ void loop()
     delay(DELAY);
     
     String       line = "";
-    unsigned int relay_index = 0;
+    String       relay_name = "";
     boolean      relay_enable = false;
+    short int    i = 0;
     
     if( !read_command(line) ) // this will block and return when there's input
     {
@@ -100,18 +101,22 @@ void loop()
     {
         DBGMSG("Received this line: " + line);
     
-        switch (parse_command(line, relay_index, relay_enable))
+        switch (parse_command(line, relay_name, relay_enable))
         {
             case SET:
-                if (relay_index < NUM_RELAY_SWTCHS)
+                for (i = 0; i < NUM_RELAY_SWTCHS; i++)
                 {
-                    g_relay_switches[relay_index].set_status(relay_enable);
-                    DBGMSG(g_relay_switches[relay_index].get_name() + (relay_enable ? " enabled" : " disabled"))
+                    if (g_relay_switches[i].get_name() == relay_name)
+                    {
+                        g_relay_switches[i].set_status(relay_enable);
+                        DBGMSG(g_relay_switches[i].get_name() + (relay_enable ? " enabled" : " disabled"))
+                        break;
+                    }
                 }
-                else
+                if (i == NUM_RELAY_SWTCHS)
                 {
                     // command parsing function shouldn't have returned a valid command in this case
-                    DBGMSG("set operation chosen but relay index is invalid")
+                    DBGMSG("set operation chosen but relay name is invalid: " + relay_name)
                 }          
                 break;
             case GET:
