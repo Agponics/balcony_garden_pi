@@ -16,36 +16,28 @@ import credentials
 def dbgprint(msg):
     print msg
 
-def log_to_cloud(strs):
-    lines = strs.split("\n")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        # raw stream data is always [stream_name]:[value]
-        tokens = line.split(":", 1)
-        if len(tokens) != 2:
-            dbgprint("unexpected stream format: " + str(tokens))
-        else:
-            dbgprint("logging stream: " + tokens[0] + ", value: " + tokens[1])
-            try:
-                if tokens[1] in ["0", "1"]:
-                    # log as a boolean value
-                    cloud_streamer.log(tokens[0], bool((tokens[1] is "1")))
-                else:
-                    # log as an int/numerical value
-                    cloud_streamer.log(tokens[0], int(tokens[1]))
-            except:
+def log_to_cloud():
+    # I'm not locking the mutex here because this function is called on the same thread that updates
+    # the dictionary so they won't conflict. 
+    for device, state in latest_states.items():
+        try:
+            if state in ["0", "1"]:
+                # log as a boolean value
+                cloud_streamer.log(device, bool(state is "1"))
+            else:
+                # log as an int/numerical value
+                cloud_streamer.log(device, int(state))
+        except:
                 dbgprint("caught exception when logging to streamer")
     try:
         cloud_streamer.flush()
     except:
-        dpgprint("caught exception when flushing streamer")
+        dbgprint("caught exception when flushing streamer")
     
 # periodically check all device states
 def check_status():
     while(ser.isOpen()): # bail if the serial connection ever closes
-        status_strs = ""
+        #status_strs = ""
         time.sleep(sec_per_check)
         mutex.acquire()
         try:
@@ -55,14 +47,23 @@ def check_status():
                 time.sleep(0.1)
                 line = ser.readline().strip()
                 if line:
-                    dbgprint(line)
-                    status_strs += line + "\n"
+                    # raw stream data is always [stream_name]:[value]
+                    tokens = line.split(":", 1)
+                    if len(tokens) != 2:
+                        dbgprint("unexpected stream format: " + line)
+                    else:
+                        dbgprint("received: " + tokens[0] + ", value: " + tokens[1])
+                        latest_states[tokens[0]] = tokens[1]
                 else:
                     break
         finally:
             mutex.release()
-            log_to_cloud(status_strs)
-            # todo: analyze status and schedule events
+            log_to_cloud()
+
+# periodically enable or disable components based on latest device states
+def analyze_status():
+    #todo
+    return
     
 baud_rate = 9600
 sec_per_check = 10 # read and report Arduino device/sensor states every 10 seconds
@@ -86,6 +87,9 @@ name_fish_tank_temp         = "DS18B20Sensorprobe0temp" # temp read-out in the f
 name_grow_bed_temp          = "DS18B20Sensorprobe1temp" # temp read-out in the grow bed (DS18B20 probe)
 name_fish_tank_h20_sensor   = "HCSR04Sensor0"           # Ultrasonic sensor measuring water distance from top (inches)
 
+# dictionary of latest sensor states, continually updated
+latest_states = {}
+
 # dictionary of scheduled relay start/stop times:
 relay_schedule = {}
 
@@ -103,6 +107,7 @@ try:
     cloud_streamer = Streamer(bucket_name=credentials.bucket_name, bucket_key=credentials.bucket_key, access_key=credentials.access_key)
     dbgprint("streamer.BucketName: " + str(cloud_streamer.BucketName))
     dbgprint("streamer.AccessKey: " + str(cloud_streamer.AccessKey))
+    # spawn a thread to continually read Arduino sensors, cache locally, and send to the cloud
     t1 = threading.Thread(target=check_status, args=())
     # flag threads as daemons so we exit if the main thread dies
     t1.daemon = True
