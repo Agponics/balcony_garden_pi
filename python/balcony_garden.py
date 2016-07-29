@@ -110,7 +110,7 @@ name_fish_tank_h20_sensor   = "HCSR04Sensor0"           # Ultrasonic sensor meas
 latest_states = {}
 
 # run system between these times:
-system_cycle_start = datetime.time(13, 0, 0) # 11:00 PM
+system_cycle_start = datetime.time(23, 0, 0) # 11:00 PM
 system_cycle_stop  = datetime.time(1, 0, 0)  # 1:00 AM
 
 try:
