@@ -1,4 +1,5 @@
 import serial
+import datetime
 import time
 import threading
 
@@ -37,7 +38,6 @@ def log_to_cloud():
 # periodically check all device states
 def check_status():
     while(ser.isOpen()): # bail if the serial connection ever closes
-        #status_strs = ""
         time.sleep(sec_per_check)
         mutex.acquire()
         try:
@@ -62,11 +62,27 @@ def check_status():
 
 # periodically enable or disable components based on latest device states
 def analyze_status():
-    #todo
+    while(ser.isOpen()): # bail if the serial connection ever closes
+        time.sleep(sec_per_analyze)
+        time_now = datetime.datetime.now().time()
+        if system_cycle_start <= system_cycle_stop:
+            cycle_on = system_cycle_start <= time_now <= system_cycle_stop
+        else: # in case window crosses midnight
+            cycle_on = system_cycle_start <= time_now or time_now <= system_cycle_stop
+        if cycle_on == True:
+            # todo: start system if not running
+            dbgprint("todo: cycle system if not running")
+        else:
+            # todo: stop system if running
+            dbgprint("todo: stop system if running")
+    # todo:
+    # -check min temp and turn on heater
+    # -check max temp and send text alert
     return
     
 baud_rate = 9600
-sec_per_check = 10 # read and report Arduino device/sensor states every 10 seconds
+sec_per_check   = 10 # read and report Arduino device/sensor states every 10 seconds
+sec_per_analyze = 30 # every 30 seconds check if we need to take any action
 # if these ports aren't working, try:
 # python -m serial.tools.list_ports
 port0 = '/dev/ttyACM0'
@@ -90,8 +106,9 @@ name_fish_tank_h20_sensor   = "HCSR04Sensor0"           # Ultrasonic sensor meas
 # dictionary of latest sensor states, continually updated
 latest_states = {}
 
-# dictionary of scheduled relay start/stop times:
-relay_schedule = {}
+# run system between these times:
+system_cycle_start = datetime.time(13, 0, 0) # 11:00 PM
+system_cycle_stop  = datetime.time(1, 0, 0)  # 1:00 AM
 
 try:
     ser = serial.Serial(port0, baud_rate, timeout=1)
@@ -109,9 +126,12 @@ try:
     dbgprint("streamer.AccessKey: " + str(cloud_streamer.AccessKey))
     # spawn a thread to continually read Arduino sensors, cache locally, and send to the cloud
     t1 = threading.Thread(target=check_status, args=())
+    t2 = threading.Thread(target=analyze_status, args=())
     # flag threads as daemons so we exit if the main thread dies
     t1.daemon = True
+    t2.daemon = True
     t1.start()
+    t2.start()
     while ser.isOpen():
         time.sleep(5)
 except:
