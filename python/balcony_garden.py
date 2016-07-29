@@ -1,3 +1,6 @@
+# Author: Brian Scully
+# Copyright (c) 2016 Agponics
+
 import serial
 import datetime
 import time
@@ -60,7 +63,7 @@ def check_status():
             mutex.release()
             log_to_cloud()
 
-# periodically enable or disable components based on latest device states
+# periodically enable or disable components based on latest states
 def analyze_status():
     while(ser.isOpen()): # bail if the serial connection ever closes
         time.sleep(sec_per_analyze)
