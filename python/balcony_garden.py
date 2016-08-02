@@ -68,21 +68,40 @@ def analyze_status():
     while(ser.isOpen()): # bail if the serial connection ever closes
         time.sleep(sec_per_analyze)
         time_now = datetime.datetime.now().time()
+        dbgprint("anaylsis thread: current time is: " + str(time_now))
         if system_cycle_start <= system_cycle_stop:
             cycle_on = system_cycle_start <= time_now <= system_cycle_stop
         else: # in case window crosses midnight
             cycle_on = system_cycle_start <= time_now or time_now <= system_cycle_stop
-        if cycle_on == True:
-            # todo: start system if not running
-            dbgprint("todo: cycle system if not running")
-        else:
-            # todo: stop system if running
-            dbgprint("todo: stop system if running")
+        if cycle_on == True and latest_states[name_water_pump] == "0":
+            # start pump if not running
+            dbgprint("starting pump")
+            send_command(name_water_pump, True)
+        elif cycle_on == False and latest_states[name_water_pump] == "1":
+            # stop pump if running
+            dbgprint("stopping pump")
+            send_command(name_water_pump, False)
     # todo:
+    # -when hot enough, periodically fill grow bed to media sensor and drain
     # -check min temp and turn on heater
     # -check max temp and send text alert
     return
-    
+
+def send_command(device, enable):
+    try:
+        if not ser.isOpen():
+            return
+        mutex.acquire()
+        cmd = "set:" + device + ":"
+        if enable == True:
+            cmd += "1"
+        else:
+            cmd += "0"
+        dbgprint("Writing cmd to serial port: " + cmd)
+        ser.write(cmd)
+    finally:
+        mutex.release()
+
 baud_rate = 9600
 sec_per_check   = 10 # read and report Arduino device/sensor states every 10 seconds
 sec_per_analyze = 30 # every 30 seconds check if we need to take any action
@@ -97,7 +116,7 @@ name_fish_tank_float_switch = "FloatSwitch"             # float switch in fish t
 name_main_switch            = "RelaySwitch0" 
 name_grow_bed_valve         = "RelaySwitch1"            # valve to release water from the grow bed
 name_fish_tank_heater       = "RelaySwitch2"            # top-left outlet, assume this is the fish tank heater
-name_outlet_bottom_left     = "RelaySwitch3"            # bottom-left outlet
+name_water_pump             = "RelaySwitch3"            # bottom-left outlet, assume this is the water pump
 name_outlet_top_right       = "RelaySwitch4"            # top-right outlet
 name_outlet_bottom_right    = "RelaySwitch5"            # bottom-right outlet
 name_main_box_temp          = "DHT22Sensor0temp"        # temp read-out in the main box (DHT-22 sensor)
@@ -109,9 +128,9 @@ name_fish_tank_h20_sensor   = "HCSR04Sensor0"           # Ultrasonic sensor meas
 # dictionary of latest sensor states, continually updated
 latest_states = {}
 
-# run system between these times:
-system_cycle_start = datetime.time(23, 0, 0) # 11:00 PM
-system_cycle_stop  = datetime.time(1, 0, 0)  # 1:00 AM
+# run the pump between these times:
+system_cycle_start = datetime.time(5, 0, 0)  # 5:00 AM
+system_cycle_stop  = datetime.time(23, 0, 0) # 11:00 PM
 
 try:
     ser = serial.Serial(port0, baud_rate, timeout=1)
