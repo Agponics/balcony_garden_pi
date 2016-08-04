@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "cmd_protocol.h"
 #include "base_device.h"
-#include "analog_float_switch.h"
+#include "analog_switch.h"
 #include "relay_switch.h"
 #include "dht22_sensor.h"   // DHT-22 temp/humidity sensor
 #include "ds18b20_sensor.h" // one-wire temperature probe
@@ -13,6 +13,7 @@
 #define DELAY 500
 
 #define START_PIN_FLOAT_SWTCH   0 // pin 0: analog float switch
+#define START_PIN_MEDIA_SNSR    1 // pin 1: grow bed media sensor
 #define START_PIN_RELAY_SWTCHS  2 // pin 2: main kill switch
                                   // pin 3: grow bed valve
                                   // pin 4: top left outlet
@@ -32,16 +33,18 @@
 #define NUM_SR04_SNRS     1
 
 #define FLOAT_SWTCH_NAME_PREFIX   "FloatSwitch"
+#define MEDIA_SNSR_NAME_PREFIX    "MediaSensor"
 #define RELAY_SWTCH_NAME_PREFIX   "RelaySwitch"
 #define DHT22_SNSR_NAME_PREFIX    "DHT22Sensor"
 #define DSB18B20_SNSR_NAME_PREFIX "DS18B20Sensor"
 #define SR04_SNSR_NAME_PREFIX     "HCSR04Sensor"
 
-CAnalogFloatSwitch g_float_switch;
-CRelay             g_relay_switches[NUM_RELAY_SWTCHS];
-CDht22Sensor       g_dht22_sensors[NUM_DHT22_SNSRS];
-CDs18b20Sensor     g_ds18b20_sensor;  // these probes are all on 1 wire
-CHcsr04Sensor      g_sr04_sensor;
+CAnalogSwitch  g_float_switch;
+CAnalogSwitch  g_growbed_media_sensor;
+CRelay         g_relay_switches[NUM_RELAY_SWTCHS];
+CDht22Sensor   g_dht22_sensors[NUM_DHT22_SNSRS];
+CDs18b20Sensor g_ds18b20_sensor;  // these probes are all on 1 wire
+CHcsr04Sensor  g_sr04_sensor;
 
 #define DBG 0 // turn on to get detailed debug info
 #if DBG == 1
@@ -56,8 +59,11 @@ void setup()
     delay(DELAY);
     
     // initialize analog float switch object and pin
-    g_float_switch.set_name(FLOAT_SWTCH_NAME_PREFIX);
+    g_float_switch.set_name(FLOAT_SWTCH_NAME_PREFIX + String(0));
     g_float_switch.set_pin(START_PIN_FLOAT_SWTCH);
+
+    g_growbed_media_sensor.set_name(MEDIA_SNSR_NAME_PREFIX + String(0));
+    g_growbed_media_sensor.set_pin(START_PIN_MEDIA_SNSR);
     
     // initialize relay switch objects and pins
     for (unsigned int i = 0; i < NUM_RELAY_SWTCHS; i++)
@@ -121,6 +127,7 @@ void loop()
                 break;
             case GET:
                 report_float_switch_states();
+                report_media_sensor_states();
                 report_relay_switch_states();
                 report_dht22_sensor_states();
                 report_ds18b20_sensor_states();
@@ -138,6 +145,12 @@ void loop()
 void report_float_switch_states()
 {
     Serial.println(g_float_switch.get_status_str());
+}
+
+// report media sensor states
+void report_media_sensor_states()
+{
+    Serial.println(g_growbed_media_sensor.get_status_str());
 }
 
 // report relay switch states
