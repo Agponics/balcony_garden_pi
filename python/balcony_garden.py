@@ -112,7 +112,8 @@ port1 = '/dev/ttyS0'
 mutex = threading.Lock()
 # unique names for each device or sensor connected to Arduino.
 # used to refer to them by name and get status or enable/disable
-name_fish_tank_float_switch = "FloatSwitch"             # float switch in fish tank. Reading of 0: water too low, 1 is ok
+name_fish_tank_float_switch = "FloatSwitch0"          # float switch in fish tank. Reading of 0: water too low, 1 is ok
+name_grow_bed_media_sensor  = "MediaSensor0"
 name_main_switch            = "RelaySwitch0" 
 name_grow_bed_valve         = "RelaySwitch1"            # valve to release water from the grow bed
 name_fish_tank_heater       = "RelaySwitch2"            # top-left outlet, assume this is the fish tank heater
