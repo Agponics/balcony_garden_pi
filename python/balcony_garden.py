@@ -65,6 +65,7 @@ def check_status():
 
 # periodically enable or disable components based on latest states
 def analyze_status():
+    global system_cycle_start, system_cycle_stop, next_valve_action, valve_open_duration, valve_close_duration
     while(ser.isOpen()): # bail if the serial connection ever closes
         time.sleep(sec_per_analyze)
         time_now = datetime.datetime.now().time()
@@ -81,6 +82,19 @@ def analyze_status():
             # stop pump if running
             dbgprint("stopping pump")
             send_command(name_water_pump, False)
+        if time_now >= next_valve_action:
+            if latest_states[name_grow_bed_valve] == "0":
+                dbgprint("closing grow bed valve")
+                send_command(name_grow_bed_valve, True)
+                next_valve_action = (datetime.datetime.now() + datetime.timedelta(minutes=valve_close_duration)).time()
+                dbgprint("next valve action at: " + str(next_valve_action))
+            elif latest_states[name_grow_bed_valve] == "1":
+                dbgprint("opening grow bed valve")
+                send_command(name_grow_bed_valve, False)
+                next_valve_action = (datetime.datetime.now() + datetime.timedelta(minutes=valve_open_duration)).time()
+                dbgprint("next valve action at: " + str(next_valve_action))
+            else:
+                dbgprint("unexpected state for valve: " + str(latest_states[name_grow_bed_valve]))
     # todo:
     # -when hot enough, periodically fill grow bed to media sensor and drain
     # -check min temp and turn on heater
@@ -115,7 +129,7 @@ mutex = threading.Lock()
 name_fish_tank_float_switch = "FloatSwitch0"          # float switch in fish tank. Reading of 0: water too low, 1 is ok
 name_grow_bed_media_sensor  = "MediaSensor0"
 name_main_switch            = "RelaySwitch0" 
-name_grow_bed_valve         = "RelaySwitch1"            # valve to release water from the grow bed
+name_grow_bed_valve         = "RelaySwitch1"            # valve to release water from the grow bed (0=open, 1=closed)
 name_fish_tank_heater       = "RelaySwitch2"            # top-left outlet, assume this is the fish tank heater
 name_water_pump             = "RelaySwitch3"            # bottom-left outlet, assume this is the water pump
 name_outlet_top_right       = "RelaySwitch4"            # top-right outlet
@@ -132,6 +146,12 @@ latest_states = {}
 # run the pump between these times:
 system_cycle_start = datetime.time(5, 0, 0)  # 5:00 AM
 system_cycle_stop  = datetime.time(23, 0, 0) # 11:00 PM
+
+# variables for grow bed valve timer:
+valve_open_duration = 20 # keep valve open for 20 mins at a time
+valve_close_duration = 4 # close valve for 4 mins at a time to fill grow bed
+# valve starts open, so next action is to close:
+next_valve_action = (datetime.datetime.now() + datetime.timedelta(minutes=valve_open_duration)).time()
 
 try:
     ser = serial.Serial(port0, baud_rate, timeout=1)
